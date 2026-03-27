@@ -11,6 +11,7 @@ export interface PipelineBlockNodeData extends Record<string, unknown> {
   stepStatus?: 'running' | 'success' | 'failed' | 'waiting' | 'skipped';
   embeddedAiId?: string;
   embeddedAiLabel?: string;
+  isDropTarget?: boolean;
 }
 
 export type PBNode = Node<PipelineBlockNodeData, 'pipelineBlock'>;
@@ -45,6 +46,8 @@ export default function PipelineBlockNode({ id, data, selected }: NodeProps<PBNo
 
   const borderClass = selected
     ? 'border-sky-400 shadow-sky-400/30 shadow-lg'
+    : data.isDropTarget
+    ? 'border-emerald-400 shadow-emerald-400/40 shadow-lg scale-105'
     : data.stepStatus
     ? (STATUS_BORDER[data.stepStatus] ?? 'border-slate-700')
     : 'border-slate-700 hover:border-slate-500';
@@ -94,6 +97,12 @@ export default function PipelineBlockNode({ id, data, selected }: NodeProps<PBNo
 
       {/* Body */}
       <div className="px-3 py-2 min-h-[36px] rounded-b-xl overflow-hidden">
+        {data.isDropTarget && (
+          <div className="mb-1 flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Thả để nhúng AI
+          </div>
+        )}
         <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">{block.description}</p>
         {data.stepStatus === 'running' && (
           <div className="mt-1 flex items-center gap-1.5 text-[11px] text-blue-400">

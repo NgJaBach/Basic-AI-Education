@@ -426,6 +426,7 @@ function BuilderInner({ pipeline, onSave, onPublish, onRun, onBack, isRunning }:
 
   // AI-embed-on-drop state
   const [pendingEmbed, setPendingEmbed]       = useState<{ aiNodeId: string; aiBlockId: string; targetNodeId: string; targetBlockId: string } | null>(null);
+  const dragHoverTargetRef                    = useRef<string | null>(null);
 
   // Right panel tab
   const [rightTab, setRightTab]               = useState<'inspector' | 'chat'>('inspector');
@@ -555,7 +556,44 @@ function BuilderInner({ pipeline, onSave, onPublish, onRun, onBack, isRunning }:
 
   // ── AI block drop-onto-block embed ───────────────────────────────
 
+  const onNodeDrag = useCallback((_evt: React.MouseEvent, draggedNode: RFNode, currentNodes: RFNode[]) => {
+    const draggedBlock = BLOCK_REGISTRY[draggedNode.data.blockId as string];
+    if (draggedBlock?.category !== 'ai-model') {
+      if (dragHoverTargetRef.current !== null) {
+        dragHoverTargetRef.current = null;
+        setNodes(prev => prev.map(n => n.data.isDropTarget ? { ...n, data: { ...n.data, isDropTarget: false } } : n));
+      }
+      return;
+    }
+
+    const BLOCK_W = 180;
+    const BLOCK_H = 90;
+    const target = currentNodes.find(n => {
+      if (n.id === draggedNode.id) return false;
+      const tb = BLOCK_REGISTRY[n.data.blockId as string];
+      if (!tb || tb.category === 'ai-model') return false;
+      const dx = Math.abs(n.position.x - draggedNode.position.x);
+      const dy = Math.abs(n.position.y - draggedNode.position.y);
+      return dx < BLOCK_W && dy < BLOCK_H;
+    });
+
+    const newTargetId = target?.id ?? null;
+    if (newTargetId !== dragHoverTargetRef.current) {
+      dragHoverTargetRef.current = newTargetId;
+      setNodes(prev => prev.map(n => ({
+        ...n,
+        data: { ...n.data, isDropTarget: n.id === newTargetId },
+      })));
+    }
+  }, [setNodes]);
+
   const onNodeDragStop = useCallback((_evt: React.MouseEvent, draggedNode: RFNode, currentNodes: RFNode[]) => {
+    // Clear hover highlight
+    if (dragHoverTargetRef.current !== null) {
+      dragHoverTargetRef.current = null;
+      setNodes(prev => prev.map(n => n.data.isDropTarget ? { ...n, data: { ...n.data, isDropTarget: false } } : n));
+    }
+
     const draggedBlock = BLOCK_REGISTRY[draggedNode.data.blockId as string];
     if (draggedBlock?.category !== 'ai-model') return;
 
@@ -579,7 +617,7 @@ function BuilderInner({ pipeline, onSave, onPublish, onRun, onBack, isRunning }:
         targetBlockId: target.data.blockId as string,
       });
     }
-  }, []);
+  }, [setNodes]);
 
   const confirmEmbed = useCallback(() => {
     if (!pendingEmbed) return;
@@ -792,7 +830,7 @@ function BuilderInner({ pipeline, onSave, onPublish, onRun, onBack, isRunning }:
             nodes={nodes} edges={edges}
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} onNodeClick={onNodeClick} onPaneClick={onPaneClick}
-            onNodeDragStop={onNodeDragStop}
+            onNodeDrag={onNodeDrag} onNodeDragStop={onNodeDragStop}
             nodeTypes={NODE_TYPES}
             defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
             fitView fitViewOptions={{ padding: 0.25 }}
